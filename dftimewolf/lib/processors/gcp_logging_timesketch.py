@@ -18,6 +18,7 @@ The following attributes are extracted by the processor:
   policy_delta: IAM policy delta.
   principal_email: email address of the requester.
   principal_subject: subject of the requester.
+  protopayload: original protopayload.
   query: Google Cloud log filtering query.
   resource_label_instance_id: Compute Engine instance ID.
   resource_name: resource name.
@@ -256,25 +257,46 @@ class GCPLoggingTimesketch(BaseModule):
     # `protoPayload.status.code` and `protoPayload.status.message` fields.
     # Empty `code` and `message` fields would indicate the operation was
     # successful.
-    status_code = str(status.get('code', ''))
-    status_message = status.get('message', '')
+    status_code = ''
+    status_message = ''
+
+    if isinstance(status, dict):
+      status_code = str(status.get('code', ''))
+      status_message = status.get('message', '')
+
+      # `protoPayload.status` struction may contain `details` attribute when
+      # opertion fails. The reason attribute contains the reason the operation
+      # failed.
+      status_reasons = []
+
+      status_details = status.get('details', [])
+      for status_detail in status_details:
+        reason = status_detail.get('reason')
+        if reason:
+          status_reasons.append(reason)
+
+      if status_reasons:
+        timesketch_record['status_reason'] = ', '.join(status_reasons)
+    elif isinstance(status, int):
+      status_code = str(status)
+    elif isinstance(status, str):
+      status_code = status
+    elif isinstance(status, list):
+      _status_codes = []
+
+      for _status_code in status:
+        if isinstance(_status_code, str):
+          _status_codes.append(_status_code)
+        elif isinstance(_status_code, int):
+          _status_codes.append(str(_status_code))
+
+      if _status_codes:
+        status_code = ', '.join(_status_codes)
+    else:
+      raise TypeError(f'unexpected type for status field: {type(status)}')
 
     timesketch_record['status_code'] = status_code
     timesketch_record['status_message'] = status_message
-
-    # `protoPayload.status` struction may contain `details` attribute when
-    # opertion fails. The reason attribute contains the reason the operation
-    # failed.
-    status_reasons = []
-
-    status_details = status.get('details', [])
-    for status_detail in status_details:
-      reason = status_detail.get('reason')
-      if reason:
-        status_reasons.append(reason)
-
-    if status_reasons:
-      timesketch_record['status_reason'] = ', '.join(status_reasons)
 
   def _ParseServiceData(
       self,
@@ -403,6 +425,8 @@ class GCPLoggingTimesketch(BaseModule):
     request = proto_payload.get('request', {})
     if not request:
       return
+
+    timesketch_record['protopayload'] = proto_payload
 
     request_attributes = [
         'name', 'description', 'direction', 'member', 'targetTags', 'email',

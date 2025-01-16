@@ -85,6 +85,7 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
             'heinz-57@ketchup-research.iam.gserviceaccount.com',
         'caller_ip':
             'gce-internal-ip',
+        'protopayload': None,
         'user_agent':
             'google-cloud-sdk gcloud/249.0.0',
         'service_name':
@@ -106,6 +107,8 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
     actual_timesketch_record = processor._ProcessLogLine(
         firewall_addition_json, 'test_query')
     actual_timesketch_record = json.loads(actual_timesketch_record)
+    actual_timesketch_record['protopayload'] = None
+
     self.assertDictEqual(expected_addition_record, actual_timesketch_record)
 
     firewall_creation = {
@@ -224,6 +227,7 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
             'compute.googleapis.com',
         'method_name':
             'v1.compute.firewalls.insert',
+        'protopayload': None,
         'resource_name':
             'projects/ketchup-research/global/firewalls/deny-tomchop-access',
         'request_name':
@@ -247,6 +251,8 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
     actual_timesketch_record = processor._ProcessLogLine(
         firewall_creation_json, 'test_query')
     actual_timesketch_record = json.loads(actual_timesketch_record)
+    actual_timesketch_record['protopayload'] = None
+
     self.assertDictEqual(expected_creation_record, actual_timesketch_record)
 
   def testGCECreateLog(self):
@@ -370,6 +376,7 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
             'compute.googleapis.com',
         'method_name':
             'v1.compute.instances.insert',
+        'protopayload': None,
         'request_description': 'GCE instance created for training.',
         'request_name': 'training-instance',
         'resource_name':
@@ -391,6 +398,8 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
     actual_timesketch_record = processor._ProcessLogLine(
         gce_creation, 'test_query')
     actual_timesketch_record = json.loads(actual_timesketch_record)
+    actual_timesketch_record['protopayload'] = None
+
     self.assertDictEqual(expected_timesketch_record, actual_timesketch_record)
 
   def testGCSCreateLog(self):
@@ -516,6 +525,7 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
             'roles/storage.legacyBucketOwner, ADD '
             'projectViewer:ketchup-research with role '
             'roles/storage.legacyBucketReader',
+        'protopayload': None,
         'message':
             'User heinz-57@ketchup-research.iam.gserviceaccount.com '
             'performed storage.buckets.create on '
@@ -529,6 +539,8 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
     actual_timesketch_record = processor._ProcessLogLine(
         gcs_creation, 'test_query')
     actual_timesketch_record = json.loads(actual_timesketch_record)
+    actual_timesketch_record['protopayload'] = None
+
     self.assertDictEqual(expected_timesketch_record, actual_timesketch_record)
 
   def testDataProcYarn(self):
@@ -578,6 +590,7 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
         'cluster_name': 'cluster-ca8b',
         'cluster_uuid': '44444-444444-444-4444-4444',
         'project_id': 'metastore-playground',
+        'protopayload': None,
         'region': 'us-central1',
         'timestamp_desc': 'Event Recorded'}
 
@@ -585,6 +598,8 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
     actual_timesketch_record = processor._ProcessLogLine(
         yarn_log, 'test_query')
     actual_timesketch_record = json.loads(actual_timesketch_record)
+    actual_timesketch_record['protopayload'] = None
+
     self.assertDictEqual(expected_timesketch_record, actual_timesketch_record)
 
   def testComputeInstancesInsert(self):
@@ -684,6 +699,7 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
       'principal_subject': 'serviceAccount:service-account123@ketchup.iam.'
           'gserviceaccount.com',
       'project_id': 'ketchup',
+      'protopayload': None,
       'resource_name': 'projects/1234567890/zones/us-central1-a/instances/'
           'my-cluster',
       'service_name': 'compute.googleapis.com',
@@ -701,6 +717,8 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
     actual_timesketch_record = processor._ProcessLogLine(
         compute_instance_insert_log, 'test_query')
     actual_timesketch_record = json.loads(actual_timesketch_record)
+    actual_timesketch_record['protopayload'] = None
+
     self.assertDictEqual(expected_timesketch_record, actual_timesketch_record)
 
   def testServiceAccountCreateFailed(self):
@@ -804,12 +822,13 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
           'gserviceaccount.com performed google.iam.admin.v1.'
           'CreateServiceAccount on projects/ketchup'),
       'method_name': 'google.iam.admin.v1.CreateServiceAccount',
-     'permissions': ['iam.serviceAccounts.create'],
+      'permissions': ['iam.serviceAccounts.create'],
       'principal_email': ('dvwa-service-account@ketchup.'
           'iam.gserviceaccount.com'),
       'principal_subject': ('serviceAccount:dvwa-service-account@'
           'ketchup.iam.gserviceaccount.com'),
       'project_id': 'ketchup',
+      'protopayload': None,
       'request_account_id': 'theattacker',
       'request_name': 'projects/ketchup',
       'resource_name': 'projects/ketchup',
@@ -833,7 +852,273 @@ class GCPLoggingTimesketchTest(unittest.TestCase):
         failed_service_account_create_log, 'test_query')
 
     actual_timesketch_record = json.loads(actual_timesketch_record)
+    actual_timesketch_record['protopayload'] = None
+
     self.assertDictEqual(expected_timesketch_record, actual_timesketch_record)
+
+  def testAppEngineLog(self):
+    """Test parsing of AppEngine log."""
+    test_state = state.DFTimewolfState(config.Config)
+    processor = gcp_logging_timesketch.GCPLoggingTimesketch(test_state)
+
+    appengine_log = {
+      'logName': ('projects/project-demo/logs/appengine.googleapis.com'
+          '%2Frequest_log'),
+      'resource': {
+        'type': 'gae_app',
+        'labels': {
+          'version_id': 'v4-12-7',
+          'project_id': 'project-demo',
+          'module_id': 'default',
+          'zone': 'us-central1-f'
+        }
+      },
+      'insertId': '6787169f0000dfee4c0d7cb1',
+      'httpRequest': {
+        'status': 200
+      },
+      'timestamp': '2025-01-15T01:59:59.055341Z',
+      'trace': 'projects/project-demo/traces/ed3955dca078380d06acc2f5b0e5fc91',
+      'spanId': 'bdde4b91522f3711',
+      'operation': {
+        'id': ('6787169e00ff0e1677da73a5800001737e7368616b612d706c61796572'
+            '2d64656d6f000176342d31322d37000100'),
+        'producer': 'appengine.googleapis.com/request_id',
+        'first': True,
+        'last': True
+      },
+      'protoPayload': {
+        '@type': 'type.googleapis.com/google.appengine.logging.v1.RequestLog',
+        'appId': 'sample-project-demo',
+        'versionId': 'v4-12-7',
+        'requestId': ('6787169e00ff0e1677da73a5800001737e7368616b612d706c6'
+            '17965722d64656d6f000176342d31322d37000100'),
+        'ip': '100.100.100.100',
+        'startTime': '2025-01-15T01:59:59.055341Z',
+        'endTime': '2025-01-15T01:59:59.057234Z',
+        'latency': '0.001893s',
+        'method': 'HEAD',
+        'resource': '/time.txt',
+        'httpVersion': 'HTTP/1.1',
+        'status': 200,
+        'responseSize': '42',
+        'referrer': 'https://google.com/',
+        'userAgent': ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit'
+            '/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'),
+        'host': 'sample-project-demo.appspot.com',
+        'instanceIndex': -1,
+        'finished': True,
+        'appEngineRelease': '1.9.71',
+        'traceId': 'ed3955dca078380d06acc2f5b0e5fc91',
+        'first': True,
+        'spanId': 'bdde4b91522f3711'
+      }
+    }
+
+    expected_timesketch_record = {
+      'caller_ip': '',
+      'data_type': 'gcp:log:json',
+      'datetime': '2025-01-15T01:59:59.055341Z',
+      'message': 'User  performed  on ',
+      'module_id': 'default',
+      'project_id': 'project-demo',
+      'protopayload': None,
+      'query': 'test_query',
+      'status_code': '200',
+      'status_message': '',
+      'timestamp_desc': 'Event Recorded',
+      'user_agent': '',
+      'version_id': 'v4-12-7',
+      'zone': 'us-central1-f'
+    }
+
+    appengine_log_record = json.dumps(appengine_log)
+
+    # pylint: disable=protected-access
+    actual_timesketch_record = processor._ProcessLogLine(
+        appengine_log_record, 'test_query')
+    actual_timesketch_record = json.loads(actual_timesketch_record)
+    actual_timesketch_record['protopayload'] = None
+
+    self.assertDictEqual(expected_timesketch_record, actual_timesketch_record)
+
+  def testProtoPayloadStatusDict(self):
+    """Test protoPayload.status field as list of strings."""
+    test_state = state.DFTimewolfState(config.Config)
+    processor = gcp_logging_timesketch.GCPLoggingTimesketch(test_state)
+
+    sample_log = {
+      'timestamp': '2025-01-16T03:45:00.987654Z',
+      'protoPayload': {
+        'status': {
+          'code': 7,
+          'message': 'Operation not permitted.'
+        }
+      }
+    }
+
+    expected_timesketch_record = {
+      'caller_ip': '',
+      'data_type': 'gcp:log:json',
+      'datetime': '2025-01-16T03:45:00.987654Z',
+      'message': 'User  performed  on ',
+      'protopayload': None,
+      'query': 'test_query',
+      'status_code': '7',
+      'status_message': 'Operation not permitted.',
+      'timestamp_desc': 'Event Recorded',
+      'user_agent': ''
+    }
+
+    sample_json_record = json.dumps(sample_log)
+
+    # pylint: disable=protected-access
+    sample_timesketch_record = processor._ProcessLogLine(
+        sample_json_record, 'test_query')
+    sample_timesketch_record = json.loads(sample_timesketch_record)
+    sample_timesketch_record['protopayload'] = None
+
+    self.assertDictEqual(expected_timesketch_record, sample_timesketch_record)
+
+  def testProtoPayloadStatusInt(self):
+    """Test protoPayload.status field as list of strings."""
+    test_state = state.DFTimewolfState(config.Config)
+    processor = gcp_logging_timesketch.GCPLoggingTimesketch(test_state)
+
+    sample_log = {
+      'timestamp': '2025-01-16T03:45:00.987654Z',
+      'protoPayload': {
+        'status': 100
+      }
+    }
+
+    expected_timesketch_record = {
+      'caller_ip': '',
+      'data_type': 'gcp:log:json',
+      'datetime': '2025-01-16T03:45:00.987654Z',
+      'message': 'User  performed  on ',
+      'protopayload': None,
+      'query': 'test_query',
+      'status_code': '100',
+      'status_message': '',
+      'timestamp_desc': 'Event Recorded',
+      'user_agent': ''
+    }
+
+    sample_json_record = json.dumps(sample_log)
+
+    # pylint: disable=protected-access
+    sample_timesketch_record = processor._ProcessLogLine(
+        sample_json_record, 'test_query')
+    sample_timesketch_record = json.loads(sample_timesketch_record)
+    sample_timesketch_record['protopayload'] = None
+
+    self.assertDictEqual(expected_timesketch_record, sample_timesketch_record)
+
+  def testProtoPayloadStatusStr(self):
+    """Test protoPayload.status field as list of strings."""
+    test_state = state.DFTimewolfState(config.Config)
+    processor = gcp_logging_timesketch.GCPLoggingTimesketch(test_state)
+
+    sample_log = {
+      'timestamp': '2025-01-16T03:45:00.987654Z',
+      'protoPayload': {
+        'status': '100'
+      }
+    }
+
+    expected_timesketch_record = {
+      'caller_ip': '',
+      'data_type': 'gcp:log:json',
+      'datetime': '2025-01-16T03:45:00.987654Z',
+      'message': 'User  performed  on ',
+      'protopayload': None,
+      'query': 'test_query',
+      'status_code': '100',
+      'status_message': '',
+      'timestamp_desc': 'Event Recorded',
+      'user_agent': ''
+    }
+
+    sample_json_record = json.dumps(sample_log)
+
+    # pylint: disable=protected-access
+    sample_timesketch_record = processor._ProcessLogLine(
+        sample_json_record, 'test_query')
+    sample_timesketch_record = json.loads(sample_timesketch_record)
+    sample_timesketch_record['protopayload'] = None
+
+    self.assertDictEqual(expected_timesketch_record, sample_timesketch_record)
+
+  def testProtoPayloadStatusList(self):
+    """Test protoPayload.status field as list of strings."""
+    test_state = state.DFTimewolfState(config.Config)
+    processor = gcp_logging_timesketch.GCPLoggingTimesketch(test_state)
+
+    sample_log = {
+      'timestamp': '2025-01-16T03:45:00.987654Z',
+      'protoPayload': {
+        'status': [100, 200]
+      }
+    }
+
+    expected_timesketch_record = {
+      'caller_ip': '',
+      'data_type': 'gcp:log:json',
+      'datetime': '2025-01-16T03:45:00.987654Z',
+      'message': 'User  performed  on ',
+      'protopayload': None,
+      'query': 'test_query',
+      'status_code': '100, 200',
+      'status_message': '',
+      'timestamp_desc': 'Event Recorded',
+      'user_agent': ''
+    }
+
+    sample_json_record = json.dumps(sample_log)
+
+    # pylint: disable=protected-access
+    sample_timesketch_record = processor._ProcessLogLine(
+        sample_json_record, 'test_query')
+    sample_timesketch_record = json.loads(sample_timesketch_record)
+    sample_timesketch_record['protopayload'] = None
+
+    self.assertDictEqual(expected_timesketch_record, sample_timesketch_record)
+
+  def testProtoPayloadStatusBool(self):
+    """Test protoPayload.status field as list of strings."""
+    test_state = state.DFTimewolfState(config.Config)
+    processor = gcp_logging_timesketch.GCPLoggingTimesketch(test_state)
+
+    sample_log = {
+      'timestamp': '2025-01-16T03:45:00.987654Z',
+      'protoPayload': {
+        'status': True
+      }
+    }
+
+    expected_timesketch_record = {
+      'caller_ip': '',
+      'data_type': 'gcp:log:json',
+      'datetime': '2025-01-16T03:45:00.987654Z',
+      'message': 'User  performed  on ',
+      'protopayload': None,
+      'query': 'test_query',
+      'status_code': 'True',
+      'status_message': '',
+      'timestamp_desc': 'Event Recorded',
+      'user_agent': ''
+    }
+
+    sample_json_record = json.dumps(sample_log)
+
+    # pylint: disable=protected-access
+    sample_timesketch_record = processor._ProcessLogLine(
+        sample_json_record, 'test_query')
+    sample_timesketch_record = json.loads(sample_timesketch_record)
+    sample_timesketch_record['protopayload'] = None
+
+    self.assertDictEqual(expected_timesketch_record, sample_timesketch_record)
 
 if __name__ == '__main__':
   unittest.main()
